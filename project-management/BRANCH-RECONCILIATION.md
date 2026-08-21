@@ -13,11 +13,17 @@ papers, primary docs and the GitHub API.*
 
 We asked whether "untangle the branches agents leave behind" is a product.
 
-**Answer: not yet, and probably not by us — but the ground under it is genuinely
-moving.**
+**Answer: no — and the premise was a third smaller than it looked.**
 
-The strongest finding argues against building. **Our branches are 1–3 commits
-each.** On the classic discipline metric — keep branches small — the workflow is
+**Measuring it properly took 28 branches down to 6.** Ten had zero novel commits
+(already squash-merged, branch never deleted). Four more merge clean with plain
+git. Two more merge clean with `weave`. **Six actually need reconciliation** — call
+it an hour's work. The tangle was real but inflated by a measurement artifact:
+`--no-merged` reports squash-merged branches as unmerged forever. See §01.
+
+The rest of the case against building held up independently.
+
+**Our branches are 1–3 commits each.** On the classic discipline metric — keep branches small — the workflow is
 already exemplary. What failed is *merge cadence*, not branch size. Six
 `sessions-*` branches were created the same day touching the same three files;
 merging each the day it was written would have produced near-zero conflict. At the
@@ -52,47 +58,111 @@ structural shift. Holding only one of those would be wrong.
 1. **Fix cadence before building anything.** Land branches the day they're written,
    or stack them. Removes most of the pain at zero engineering cost. DORA's guidance
    is ≤3 active branches; we have 15–28.
-2. **Keep the collision query.** The two-command sweep that found seven branches
-   fighting over one file is genuinely useful. Ship it as `orrery collisions` — a
-   CLI query, not a product.
-3. **Watch `Ataraxy-Labs/weave`** (1,256★ / 40 forks, 188 points on HN) — the only
+2. **Delete the 10 dead branches in `wp-diagnostic`** (and 8 in this repo). Zero
+   risk, zero novel commits, content already in main. Verified by patch-id.
+3. **If anything ships, ship `orrery collisions` — and lead with patch-id triage.**
+   "10 of these are safe to delete right now" is the useful line; the conflict
+   analysis is secondary. `git branch --merged` cannot tell you this under
+   squash-merge, and nothing else does either.
+4. **Consider `weave` as a merge driver.** It cleared 25% of our remaining
+   conflicts outright and reduced the rest. `brew install weave && weave setup`.
+   It's a dependency, not a thing to build.
+5. **Watch `Ataraxy-Labs/weave`** (1,256★ / 40 forks, 188 points on HN) — the only
    project here with real traction. If it grows into N-branch reasoning, the gap
    closes.
 
 **Don't**
 
-4. **Don't build a conflict *predictor*.** The literature rejects the premise, and
+6. **Don't build a conflict *predictor*.** The literature rejects the premise, and
    ConE — the one that worked — was tuned so hard it flagged only 3% of PRs.
-5. **Don't promise agent auto-resolution.** The best LLMs correctly resolve **under
+7. **Don't promise agent auto-resolution.** The best LLMs correctly resolve **under
    60%** of merge conflicts. See §05.
 
 **Watch**
 
-6. If cross-agent conflict rates keep climbing and someone publishes branch-count
+8. If cross-agent conflict rates keep climbing and someone publishes branch-count
    telemetry, revisit. Right now **nobody measures branch counts at all** — there is
    no population baseline for our 28.
 
 ---
 
-## 01 · What our own repos showed
+## 01 · What our own repos showed — 28 branches became 6
 
-| | `wp-diagnostic` | `mission-control-desktop` |
-|---|---|---|
-| Unmerged branches | 28 | 15 |
-| Conflicting against main | 6 of 9 sampled | **11 of 15 (73%)** |
-| Commits per branch | 1–3 | 1–3 |
-| Worst collision | `pm/KNOWN-ISSUES.md` — 7 branches | `generate.py` — 9 branches |
+**The headline number was wrong, and the way it was wrong is the most useful thing
+in this document.**
+
+Three cheap checks reduced `wp-diagnostic` from "28 tangled branches" to **6 that
+actually need attention**:
+
+| Check | Result |
+|---|---|
+| **1. Patch-id triage** (`git cherry`) | **10 of 28 branches (36%) have zero novel commits.** Their content is already in main. |
+| **2. Plain `git merge-tree`** | Of 12 branches with real work tested, **4 merge clean today**. |
+| **3. `weave preview`** (entity-level merge) | **2 more go clean.** 6 still conflict, at reduced volume. |
+
+**Net: 10 to delete, 6 to land clean, 6 needing real reconciliation.**
+
+### The measurement artifact — `--no-merged` lies under squash-merge
+
+Both repos squash-merge PRs. A squash merge never makes the branch's commits
+ancestors of main, so `git for-each-ref --no-merged` reports those branches as
+unmerged **forever**, even though every line of their content is in main.
+
+- `wp-diagnostic`: **10 of 28** branches are this — pure undeleted-branch noise.
+- `mission-control-desktop`: **8 of 15** remote branches have zero novel commits,
+  including all of `sessions-multi-repo`, `sessions-two-section-view`,
+  `sessions-lead-with-title`, `release-2.5.0-changelog`, `roadmap-wedge`.
+
+The earlier "73% conflict rate" figure is inflated by exactly this: a squash-merged
+branch conflicts with main **by construction**, because main holds the squashed
+version and the branch holds the originals. It is not tangle. It is a branch nobody
+deleted.
+
+⚠️ **Correction to an earlier claim in this session.** I reported
+`fleet-phase3/digest` as "clean — land it free." It has **zero novel commits**;
+landing it is a no-op. And the branch I analysed in forensic detail,
+`fleet-phase1/report-endpoint` — "one commit, 12 conflicting files" — is also
+**already in main**. The conflict I characterised as "the branch is stale, main
+moved on" was real, but the correct action is `git branch -D`, not reconciliation.
+
+### The weave result
+
+Installed `weave` 0.5.1 and previewed every branch with novel work:
+
+| Outcome | Count |
+|---|---|
+| Clean under plain git | 4 of 12 |
+| **Cleared additionally by weave** | **2 of 8 remaining conflicts (25%)** |
+| Still conflicting under weave | 6, at reduced conflict count (1–3 each) |
+
+`dash-autorefresh/fetcher` and `gads-audit/fix-checklist` both conflict under git
+and merge **clean** under weave. The rest drop from "conflict across N files" to
+1–3 discrete conflicts.
+
+Weave's repo claims ~95% reduction versus line-based merge; that's a volume claim
+(hunks) and is not contradicted by our branch-level 25%. Both can hold.
+
+### The rest still stands
 
 **Every worktree was clean** — 0 dirty files across all six under
 `.claude/worktrees/`, plus six stale registry entries pointing at deleted
 directories. The worktree thesis in [`STRANDED-WORKTREES.md`](STRANDED-WORKTREES.md)
-does not reproduce here: **the branches are the mess, not the worktrees.**
+does not reproduce here: **the branches are the mess, not the worktrees** — and even
+they are a third smaller than they look.
 
-**The conflicts are staleness, not disagreement.** Inspecting
-`fleet-phase1/report-endpoint` — one commit, 12 files flagged, 4 with real markers,
-16 hunks — every hunk has the same shape: main gained the Phase 3 digest columns and
-a scope column; the branch still carries the older schema. Nothing argues with
-anything. The branch is simply behind.
+**Collisions were real**: `pm/KNOWN-ISSUES.md` touched by 7 branches, `generate.py`
+by 9. But given a third of those branches are already merged, the live collision
+count is lower too.
+
+### The one product insight that survives
+
+**The first genuinely useful thing a branch tool can do is patch-id triage.**
+`git branch --merged` lies under squash-merge, GitHub's "delete branch on merge"
+doesn't retroactively clean anything, and nothing in the ecosystem separates
+*already landed* from *genuinely pending*.
+
+That's a small, concrete, verifiable win — `orrery collisions` should lead with
+"10 of these are safe to delete right now" before it says anything about conflict.
 
 ## 02 · The counter-case, which is strong
 
