@@ -29,6 +29,12 @@ terminal. The CLI ([#38](https://github.com/jokeane9/orrery/issues/38)) isn't a
 side quest — it's the surface that matches the instinct, and it routes around the
 distribution friction (Gatekeeper, notarization) entirely.
 
+**Forward direction (2026-08-21):** the wedge above still holds, but
+[`DIRECTION.md`](DIRECTION.md) sharpens it into a four-test filter and two
+candidate directions — *unprompted notices* (stop being a window, become a thing
+that tells you) and the *unified per-repo timeline* (already flagged as an unbuilt
+bonus in `multitool-sessions-plan.md`). Read it before adding anything new here.
+
 ## Now
 
 - [ ] Nothing in flight. `main` clean, released through **v2.5.0** — the Sessions

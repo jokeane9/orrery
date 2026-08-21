@@ -64,6 +64,38 @@ cannot see it, cannot be blocked by it, and is unaffected when you strand one. N
 shared state, nothing propagates. This is single-player by construction — which
 rules out any "our team keeps hitting this" pitch.
 
+### The cross-tool claim needs narrowing
+
+A verified survey (n=396, Apr–May 2026) puts **98% of engineering orgs on AI coding
+assistants, averaging 2.4 tools simultaneously.** The aggregation problem is real
+and no vendor will ever solve it — Cursor won't show you Claude Code's work. That
+remains the one structurally defensible position.
+
+**But Orrery's cross-tool coverage is thinner than the pitch implies**, and
+`multitool-sessions-plan.md` already established why: git records who you are,
+never which agent typed the commit. So Work Log and Worktrees are tool-*agnostic*,
+not tool-aware. **Sessions is the only genuinely cross-tool view.**
+
+And the two most differentiated things in the app are Claude-only by data
+availability:
+
+- **Worktrees** — Cursor creates none locally. The strongest view covers one vendor.
+- **Token charts** — Cursor's `usageData` is blank on every session.
+
+**The asymmetry to plan around:** the *cost* of cross-tool scales with vendor
+count, but the *value* doesn't — because the intersection of what all vendors
+expose shrinks as you add them. Claude Code gives repo, branch, files, tools,
+tokens, worktrees, timing, messages. Cursor gives repo, branch, files, tools,
+timing, messages — no tokens, no PRs, no worktrees. The shared set is already down
+to the least informative fields; a third vendor shrinks it again. Meanwhile the
+maintenance is permanent: Cursor's schema has no contract and renames fields
+silently, Claude Code's JSONL is documented as unstable/internal, and Cursor now
+sits inside SpaceX.
+
+**Cross-tool aggregation converges on the lowest common denominator.** Claim it
+where it's true — Sessions and the per-repo timeline — and don't stretch it to
+cover the rest. The headline is git-anchored; cross-tool is one view on top.
+
 ## 03 · The competitive audit
 
 ~18 tools examined, most at source level. Star/fork counts pulled from the GitHub
