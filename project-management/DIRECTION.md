@@ -90,9 +90,90 @@ came from the first, because that can't be known.
 That constraint is a feature. It's the same discipline that makes the whole app
 trustworthy — it doesn't lie about state.
 
-## How the two combine
+## Direction 3 · Untangle the team's agent debris — a different company
 
-They're one product, not two.
+**The only candidate here that requires breaking principle #1. Recorded because
+the problem is real and measured, not because it's recommended.**
+
+### The problem is quantified
+
+From LinearB's 8.1M-PR dataset: **AI-assisted PRs merge within 30 days 32.7% of the
+time; human-authored PRs, 84.5%.** Roughly two-thirds of AI-generated PRs don't land
+within a month. Faros puts median time in review up **441.5%**.
+
+That is not a review problem. It's *debris* — branches, PRs and half-finished agent
+work accumulating faster than anyone reconciles it. The positioning writes itself:
+**it doesn't review code, it untangles the mess.** The category is stuffed with
+reviewers and measurers; nobody sells cleanup.
+
+### Two objections that don't hold
+
+An earlier draft of this analysis listed three walls. Two were weak and are struck:
+
+- *"GitHub already has the data."* True of every successful tool in this space —
+  CodeRabbit reads PRs GitHub has. Data availability was never the moat.
+- *"It's automatable."* Equally true of code review, which is now a $1.5B company.
+
+The authority problem — acting on a colleague's branch — is real but is a build
+cost, not a wall. A scoped GitHub App org install is how every bot here works.
+
+### The signal, read both ways
+
+**Graphite is this product**: stacked PRs, merge queue, automated management of the
+PR pile. $52M Series B at $290M, Anthropic-backed. **Acquired by Cursor,
+2025-12-19**, reportedly well over that valuation.
+
+- **Read as opportunity:** a real acquirer paid real money. The problem is worth
+  buying, and an agent vendor was the buyer. That is a viable path, not a warning.
+- **Read as risk:** the category leader concluded it was worth more as a feature of
+  a coding agent than as a company — the same absorption pattern that closed every
+  other lane examined this week.
+
+Both are true. Which one governs depends entirely on whether the goal is a company
+or a tool.
+
+### The open question nobody has answered
+
+**Is the debris tangled, or is it bad?** Bot-only-reviewed PRs merge at 45.20% vs
+68.37% human-reviewed. If an agent opens six PRs a day and four shouldn't ship,
+those PRs *rotting is correct behaviour* — and untangling them faster tidies a
+symptom without creating value.
+
+This is cheap to check against real repos and would materially change the case.
+**Check it before building anything.**
+
+### Speculative sub-idea: visual, not textual, recommendations
+
+Bot review comments are addressed **0.9–19.2%** of the time; human comments ~60%
+(arXiv 2604.03196, 3,109 PRs). **The text-comment channel is exhausted** — everyone
+posts more comments into a surface developers have learned to scroll past.
+
+A picture of the tangle is a different channel: which in-flight agent branches touch
+the same files, where they collide, what to land first. Orrery already has visual
+DNA (`tools.vizstack` / `tools.agentviz`).
+
+⚠️ **Unvalidated and easy to get wrong.** Repo-graph visualisations are a classic
+thing that demos brilliantly and gets opened once — GitHub's own network graph is
+right there and nobody uses it. The value would have to be in the *insight* (which
+work collides), with the rendering only making it land. Don't build the picture
+before proving the insight.
+
+### The honest framing
+
+This is a **different company**, not a roadmap item: server, accounts, org installs,
+trust, support, eventually a security questionnaire. Orrery is a free local app
+maintained by one person.
+
+That's not an argument against it. It's the cost of it. If it's ever pursued,
+[`PRODUCT.md`](../PRODUCT.md) gets rewritten first — deliberately, as a documented
+strategy pivot — the way principle #1 requires. Never as a feature that creeps in.
+
+---
+
+## How 1 and 2 combine
+
+Directions 1 and 2 are one product, not two. (Direction 3 is separate by
+construction — it's a different company.)
 
 **The timeline is the surface. The notice is the delivery.** Something fires
 unprompted — a session ended badly, a repo has gone quiet mid-push — and the thing
