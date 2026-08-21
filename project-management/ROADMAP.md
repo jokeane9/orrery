@@ -79,6 +79,12 @@ distribution friction (Gatekeeper, notarization) entirely.
 
 ## Later
 
+- [ ] **Session handoff bundle** (`orrery session share <id>`) — one portable
+      file per agent session: footprint, worktree verdict, diff stat, no
+      transcript. Every vendor now shares *transcripts* and is fighting secret
+      leakage over it; this shares consequences and structurally can't leak.
+      **Proposal** — read [`MULTIPLAYER-SPEC.md`](MULTIPLAYER-SPEC.md) first.
+      (A team server for sharing sessions is a **decided no** in the same doc.)
 - [ ] **P4 — LLM extraction** ([#15](https://github.com/jokeane9/orrery/issues/15)) —
       feed a repo's CLAUDE.md to Claude to distill card fields for repos without a
       structured block. Opt-in, needs an API key + disclosure. **Deferred by decision.**
