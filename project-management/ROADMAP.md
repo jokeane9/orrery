@@ -36,25 +36,18 @@ wrong before verdicts is in [`BRANCH-RECONCILIATION.md`](BRANCH-RECONCILIATION.m
 
 ## Now
 
-- [ ] **`orrery collisions` — patch-id triage first.** The smallest thing that
-      delivers the new direction, and the only capability the research confirmed
-      nobody offers. Three passes, verdict-first:
-      1. **Patch-id triage** (`git cherry`) — which branches are *already in main*
-         via squash-merge. `git branch --merged` cannot tell you this. In
-         `wp-diagnostic` that's **10 of 28**; here it's **8 of 15**.
-      2. **Mergeability** (`git merge-tree`) — of what's left, which land clean.
-      3. **File collisions** — which branches touch the same files.
-      Output leads with the verdict: *"10 safe to delete · 6 land clean · 6 need
-      you."* Optional `weave preview` pass when weave is installed (it cleared 25%
-      of remaining conflicts). Evidence:
-      [`BRANCH-RECONCILIATION.md`](BRANCH-RECONCILIATION.md) §01.
+- [ ] **SessionEnd hook → the first notice.** A Claude Code session ends; Orrery
+      checks what it left across the workspace and says so. No window, no asking.
+      Narrowest trigger, clearest moment — and the first thing that *speaks*
+      rather than waiting to be typed, which is the whole bet in
+      [`PRODUCT.md`](../PRODUCT.md). Direction 1 in [`DIRECTION.md`](DIRECTION.md)
+      made concrete.
+      **This is the test.** `collisions` is still a thing you run. If these
+      notices get ignored, the direction is wrong and a week will show it; if
+      they get acted on, the new north star has evidence.
 
 ## Next — the direction
 
-- [ ] **SessionEnd hook → the first notice.** A Claude Code session ends; Orrery
-      checks what it left across the workspace and says so. No window, no asking.
-      Narrowest trigger, clearest moment. This is Direction 1 in
-      [`DIRECTION.md`](DIRECTION.md) made concrete.
 - [ ] **Verdict-first `orrery status`.** Lead every command with a recommendation,
       not a table. State becomes the detail underneath.
 - [ ] **`pre-push` notice** — *"2 in-flight branches already touch
@@ -166,6 +159,28 @@ Written down so they don't get relitigated every quarter.
   product, and it breaks the offline-engine principle (#4).
 
 ## Completed
+
+- [x] 2026-08-21 — **`orrery collisions`** (v2.6.0, [#71](https://github.com/jokeane9/orrery/pull/71)):
+      the first build against the new direction — lead with a verdict, not a
+      table. Patch-id triage (`git cherry`) first, because `--no-merged` and
+      `git branch --merged` both answer by ancestry and a squash-merge never
+      makes a branch's commits ancestors of the trunk: on this workspace that
+      mislabelled **50 of 113 branches** as outstanding when they had already
+      shipped. Then `merge-tree --write-tree` for mergeability (in memory —
+      nothing to abort), then file collisions across branches that still have to
+      land. Guarded after an unguarded sweep ran past five minutes: branch count
+      was never the cause — a three-branch repo was slower than a thirty-branch
+      one, because vendored forks have histories deep enough that even
+      `rev-list` walks for seconds. Repos over 100 branches are skipped **and
+      named**, never silently. Dedupes by commit tip, not name. 9 tests on real
+      git repos. Immediately found 8 dead branches in this repo, all deleted.
+- [x] 2026-08-21 — **Product direction change** (v2.6.0, [#70](https://github.com/jokeane9/orrery/pull/70)):
+      *housekeeping that speaks, not observability you visit.* The old north star
+      was "the first window you open" and the maintainer had stopped opening it.
+      Five research decision records land with it — multiplayer (no), the market
+      map (not a business), stranded worktrees, branch reconciliation, and the
+      forward direction — plus two new product principles: never lie about state,
+      and say something without being opened.
 
 - [x] 2026-07-17 — **"Needs attention" cries wolf fixed** (v2.2.1, #44):
       `collect()` counted every unmerged *remote* branch, so repos cloned to
