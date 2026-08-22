@@ -47,6 +47,7 @@ wrong before verdicts is in [`BRANCH-RECONCILIATION.md`](BRANCH-RECONCILIATION.m
       they get acted on, the new north star has evidence.
 
 ## Next — the direction
+
 - [ ] **Verdict-first `orrery status`.** Lead every command with a recommendation,
       not a table. State becomes the detail underneath.
 - [ ] **`pre-push` notice** — *"2 in-flight branches already touch
