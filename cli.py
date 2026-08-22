@@ -3,6 +3,7 @@
 
     orrery status              what needs you, across every repo
     orrery worktrees           every extra checkout + safe-to-remove verdict
+    orrery collisions          branches: already landed, land clean, or fighting
     orrery sessions            Claude Code sessions: live, recent, ghosts
     orrery standup             your recent commits, grouped by day
     orrery skills              the Claude Code skills catalog
@@ -182,6 +183,82 @@ def cmd_worktrees(args):
 
 
 # --------------------------------------------------------------------------- #
+# collisions — what's already landed, what lands clean, what fights
+# --------------------------------------------------------------------------- #
+def cmd_collisions(args):
+    cfg, cache = load(args)
+    projects, _ = generate.workspace(cfg, cache)
+    repos = views.collect_collisions(project_dirs(projects))
+
+    def render(_):
+        if not repos:
+            print(green("✓ nothing outstanding") +
+                  dim(" — every branch is landed or gone"))
+            return
+        landed = sum(r["landed"] for r in repos)
+        clean = sum(r["clean"] for r in repos)
+        stuck = sum(r["conflicted"] for r in repos)
+        total = sum(len(r["branches"]) for r in repos)
+
+        # The verdict first. The branch tables underneath are the detail.
+        parts = [f'{total} branch{"es" if total != 1 else ""} '
+                 f'across {len(repos)} repo{"s" if len(repos) != 1 else ""}']
+        if landed:
+            parts.append(green(f"{landed} safe to delete"))
+        if clean:
+            parts.append(blue(f"{clean} land clean"))
+        if stuck:
+            parts.append(amber(f"{stuck} need you"))
+        print(" · ".join(parts))
+
+        for r in repos:
+            print()
+            head = bold(r["repo"])
+            if r["base"]:
+                head += dim(f'   base: {r["base"]}')
+            print(head)
+            if r["skipped"]:                      # partial or untouched — say so
+                print(f'  {dim("skipped:")} {dim(r["skipped"])}')
+            for key, label, paint in (("landed", "safe to delete", green),
+                                      ("clean", "lands clean", blue),
+                                      ("conflict", "needs you", amber),
+                                      ("diverged", "too far ahead to triage", dim),
+                                      ("unknown", "couldn't tell", dim)):
+                rows = [b for b in r["branches"] if b["verdict"] == key]
+                if not rows:
+                    continue
+                print(f'  {paint(label)} ({len(rows)})')
+                for b in rows:
+                    if key == "landed":
+                        note = dim("already in main")
+                    else:
+                        note = dim(f'+{b["novel"]}' +
+                                   (f', {b["behind"]} behind' if b["behind"] else ""))
+                        if b["conflict_files"]:
+                            n = len(b["conflict_files"])
+                            note += "  " + amber(f'{n} file{"s" if n != 1 else ""}')
+                    tag = dim(" ⇡") if b["scope"] == "remote" else "  "
+                    print(f'    {b["name"][:46].ljust(46)}{tag} {note}')
+            if r["collisions"]:
+                print(f'  {dim("collisions")}')
+                for c in r["collisions"][:views._COLL_FILES]:
+                    n = len(c["branches"])
+                    print(f'    {c["file"][:46].ljust(46)}  '
+                          f'{amber(str(n))} {dim("branches")}')
+                extra = len(r["collisions"]) - views._COLL_FILES
+                if extra > 0:
+                    print(dim(f'    +{extra} more'))
+
+        if landed:
+            print(dim("\n⇡ = remote only.  Delete a landed branch:  "
+                      "git -C <repo> branch -D <name>"))
+        print(dim("Nothing above was modified — every check ran in memory."))
+
+    out(repos, args, render)
+    return 0
+
+
+# --------------------------------------------------------------------------- #
 # standup — what you shipped
 # --------------------------------------------------------------------------- #
 _SPANS = {"today": 1, "week": 7, "month": 30, "3months": 92}
@@ -338,6 +415,10 @@ def build_parser():
     w = sub.add_parser("worktrees", parents=[common],
                        help="extra checkouts + safe-to-remove verdicts")
     w.set_defaults(fn=cmd_worktrees)
+
+    c = sub.add_parser("collisions", parents=[common],
+                       help="branches: already landed, land clean, or fighting")
+    c.set_defaults(fn=cmd_collisions)
 
     d = sub.add_parser("standup", parents=[common],
                        help="your recent commits, by day")
