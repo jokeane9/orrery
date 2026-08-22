@@ -25,6 +25,11 @@ Adapted from the killdate-kit convention, trimmed for a **shipped desktop app**
 | `ARCHITECTURE.md` | Before touching how the layers connect (generate ↔ app ↔ packaging). |
 | `STACK.md` | Before any permanent tooling/dependency decision, or to see why an alternative was ruled out. |
 | `UX-FLOWS.md` | Before changing any user-facing interaction (navigation, groups/folders, drag, keyboard, editor). The canonical interaction model. |
+| `BRANCH-RECONCILIATION.md` | Before building anything around merge conflict, branch tangle, or agent branch volume. Why our own 28 branches are mostly a cadence problem, what the literature rejects, and where the market actually is (3 stars). |
+| `DIRECTION.md` | Before planning anything new. The forward view: the four-test filter for what's worth building, and the two directions that pass it — unprompted notices, and the unified per-repo timeline. |
+| `STRANDED-WORKTREES.md` | Before extending the Worktrees view, or pitching worktree cleanup as a product. Why Claude Code keeps the dangerous ones by design, what the ~18 orchestrators do, and why the demand is quiet. |
+| `WHO-PAYS.md` | Before any monetization, pricing, or "should this be a business" question. Where money actually is in AI dev tools, which circulating figures are fabricated, and why the developer-side position has no revenue on it. |
+| `MULTIPLAYER-SPEC.md` | Before touching anything team/sharing/multi-user shaped, or any compliance/audit-trail angle. Opens with a PM summary and recommendations; carries the decided noes, the handoff-bundle spec, and what would reopen the question. Read `TEAM-COLLAB-RESEARCH.md` alongside it. |
 | `UX-AUDIT.md` | The 2026-07-14 full-app UX review — findings, what shipped in v1.6.0, and the prioritized backlog. Read before picking up a UX task. |
 
 ## Also

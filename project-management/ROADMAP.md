@@ -7,85 +7,127 @@ items, reorder if priorities shifted, add anything new. Now / Next / Later.
 
 ## The wedge (read before prioritising)
 
-**Orrery's differentiator is not the git dashboard.** Every tool shows branch and
-dirty count. Look instead at what actually got built: a Skills catalog, a Claude
-token chart, and a Worktrees view that exists *specifically* because interrupted
-Claude Code sessions strand checkouts under `.claude/worktrees/`. That's three
-features about **the state your agents leave behind across many repos** — and
-nobody else ships it.
+**Revised 2026-08-21.** [`PRODUCT.md`](../PRODUCT.md) changed direction: Orrery is
+**housekeeping that speaks, not observability you visit.** Prioritise against that.
 
-The evidence it's real: on 2026-07-16 the Worktrees view was built because six
-ghost worktrees, up to 68 days old, were sitting in two repos where no
-`git status` would ever mention them.
+**What survived from the old wedge:** the differentiator is *the state your agents
+leave behind across many repos* — Worktrees, Sessions, the token chart. Nobody else
+ships it. That's still true and still the ground.
 
-So the strategy is: **be the dashboard for agent-assisted development**, and let
-the git state be the table stakes underneath it. Sessions ([#39](https://github.com/jokeane9/orrery/issues/39))
-is the deliberate version of what Worktrees stumbled into. Weigh new work against
-that, not against "what would a git dashboard have?"
+**What changed:** "be the dashboard" was wrong. The maintainer stopped opening the
+dashboard. A window loses to an agent that can derive the same state on demand — the
+six ghost worktrees sat for 68 days not because nothing could find them, but because
+nobody asked.
 
-The second lesson from the same day: the maintainer, faced with a real problem,
-wrote a **bash script** (`~/.local/bin/wt`), not a window. Devs live in the
-terminal. The CLI ([#38](https://github.com/jokeane9/orrery/issues/38)) isn't a
-side quest — it's the surface that matches the instinct, and it routes around the
-distribution friction (Gatekeeper, notarization) entirely.
+**And the second lesson from 2026-07-16 was the important one all along:** faced
+with a real problem, the maintainer wrote a **bash script**, not a window. The CLI
+isn't a side quest — it's the surface. It also routes around Gatekeeper and
+notarization entirely, which now demotes a chunk of the distribution work below.
+
+### Three tests for anything new
+
+1. **Does it fire without being opened?** If it only works when you remember to
+   look, an agent already does it better.
+2. **Does it give a verdict, not a table?** "10 safe to delete" beats a list of 28.
+3. **Is it git- or filesystem-anchored?** Vendor session formats churn; git doesn't.
+
+Full reasoning in [`DIRECTION.md`](DIRECTION.md). The evidence that the numbers were
+wrong before verdicts is in [`BRANCH-RECONCILIATION.md`](BRANCH-RECONCILIATION.md).
 
 ## Now
 
-- [ ] Nothing in flight. `main` clean, released through **v2.5.0** — the Sessions
-      redesign: title-led rows, two sections (Live & active / Repo graveyard),
-      lifecycle state pills (Concept-B colour), multi-repo badges, an End-session
-      control plane, and scheduled routines hidden. Next up is distribution:
-      notarization (#9) so installs stop fighting Gatekeeper, then the launch
-      post. See the full-app UX audit in [`UX-AUDIT.md`](UX-AUDIT.md).
+- [ ] **`orrery collisions` — patch-id triage first.** The smallest thing that
+      delivers the new direction, and the only capability the research confirmed
+      nobody offers. Three passes, verdict-first:
+      1. **Patch-id triage** (`git cherry`) — which branches are *already in main*
+         via squash-merge. `git branch --merged` cannot tell you this. In
+         `wp-diagnostic` that's **10 of 28**; here it's **8 of 15**.
+      2. **Mergeability** (`git merge-tree`) — of what's left, which land clean.
+      3. **File collisions** — which branches touch the same files.
+      Output leads with the verdict: *"10 safe to delete · 6 land clean · 6 need
+      you."* Optional `weave preview` pass when weave is installed (it cleared 25%
+      of remaining conflicts). Evidence:
+      [`BRANCH-RECONCILIATION.md`](BRANCH-RECONCILIATION.md) §01.
 
-## Next
+## Next — the direction
 
-- [ ] **Archive a session** — a reversible "retire this from my view" for the
-      Repo graveyard, without the permanence of deleting a transcript. Today
-      *End* (SIGTERM) stops a running process but the session lingers as
-      `finished`; there's no way to clear a done session you're through with.
-      Archive = mark it hidden in Orrery's local state (the `.jsonl` transcript
-      stays on disk, un-destroyed) with a "show archived" toggle to bring it
-      back. This is the honest answer to "can I delete this?" — soft, reversible,
-      and it keeps Orrery's read-only-of-your-exhaust ethos intact rather than
-      adding a hard-delete. *(Raised while dogfooding v2.5.0's End control.)*
+- [ ] **SessionEnd hook → the first notice.** A Claude Code session ends; Orrery
+      checks what it left across the workspace and says so. No window, no asking.
+      Narrowest trigger, clearest moment. This is Direction 1 in
+      [`DIRECTION.md`](DIRECTION.md) made concrete.
+- [ ] **Verdict-first `orrery status`.** Lead every command with a recommendation,
+      not a table. State becomes the detail underneath.
+- [ ] **`pre-push` notice** — *"2 in-flight branches already touch
+      `scan-email.js`."* Prevention at the moment it's actionable, which is worth
+      more than cleanup after.
+- [ ] **Per-repo cross-tool timeline** — every stream on one axis (Claude and
+      Cursor sessions, commits, branch/worktree events). Already identified as an
+      unbuilt bonus in [`multitool-sessions-plan.md`](multitool-sessions-plan.md).
+      **Constraint:** git carries no tool attribution, so it shows two truthful
+      streams and never claims causation.
+
+## Next — real bugs, unaffected by the direction change
+
 - [ ] **Uncloned repos can't be grouped or annotated**
       ([#40](https://github.com/jokeane9/orrery/issues/40)) — `resolve.overrides()`
-      matches by path, so an uncloned repo can never take a manual group. Found
-      while organising 28 projects: the only workaround was to clone the repo.
-      Fix by matching on identity, which `discover()` already does. **A real bug,
-      not a preference.**
+      matches by path, so an uncloned repo can never take a manual group. Fix by
+      matching on identity, which `discover()` already does. **A real bug, not a
+      preference.**
 - [ ] **`roots` ignore list** ([#41](https://github.com/jokeane9/orrery/issues/41)) —
       `~/projects/_archive/` scans as live work. One repo today; archives only grow.
+- [ ] **Archive a session** — a reversible "retire this from my view" for the Repo
+      graveyard. *End* (SIGTERM) stops a running process but the session lingers as
+      `finished`. Archive marks it hidden in local state (the `.jsonl` stays on
+      disk) with a "show archived" toggle. The honest answer to "can I delete
+      this?" — soft, reversible, keeps the read-only-of-your-exhaust ethos.
+
+## Later — window tier (demoted 2026-08-21)
+
+Not wrong, and not abandoned. These polish a surface that is **no longer the front
+door**, so they sit behind anything that fires unprompted. Pick them up when the
+window is the thing you're actually in.
+
 - [ ] **⌘K palette** ([#42](https://github.com/jokeane9/orrery/issues/42)) —
-      shortcuts stop at ⌘9; a real workspace has 28 projects, so 19 have no
-      keyboard path. `skills` already has the search pattern to generalise.
-- [ ] **Editor onboarding** — thesis before tier/group; `tier` → `<select>`;
-      path validation/`.git` check. (UX-AUDIT · detail F2–F4)
-- [ ] **Provenance made usable** — a legend + clickable "guess" → jump to that
-      field in the editor. (UX-AUDIT · detail F1/F9)
+      shortcuts stop at ⌘9; 28 projects means 19 have no keyboard path.
+- [ ] **Editor onboarding** — thesis before tier/group; `tier` → `<select>`; path
+      validation/`.git` check. (UX-AUDIT · detail F2–F4)
+- [ ] **Provenance made usable** — legend + clickable "guess" → jump to that field.
+      (UX-AUDIT · detail F1/F9)
 - [ ] **GitHub error consistency** — replace native `alert()` in sync/clone with
-      inline/toast; name the real clone path. (UX-AUDIT · detail F6/F7)
-- [ ] **Design-system tightening** — consolidate the badge vocabulary
-      (`.eyebrow`/`.pill`), adopt a type-scale token set, shape-encode git state
-      for colorblindness. (UX-AUDIT · global F4/F7/F8)
+      inline/toast. (UX-AUDIT · detail F6/F7)
+- [ ] **Design-system tightening** — consolidate badge vocabulary, type-scale
+      tokens, shape-encode git state for colorblindness. (UX-AUDIT · global F4/F7/F8)
+
+## Later — distribution (demoted 2026-08-21)
+
+**The CLI routes around Gatekeeper and notarization entirely.** If the terminal is
+the primary surface, this work matters less than it did when the window was the
+product. Still worth doing eventually; no longer the thing blocking a launch.
+
 - [ ] **Windows code signing** ([#7](https://github.com/jokeane9/orrery/issues/7)) —
       SignPath enrollment → activates the already-wired step. Owner action.
 - [ ] **winget listing** ([#8](https://github.com/jokeane9/orrery/issues/8)) —
-      manifests verified/prepped; blocked on #7.
-- [ ] **Post the launch** — Show HN / r/programming / X drafts ready
-      ([#11](https://github.com/jokeane9/orrery/issues/11) is
-      done — blog post live on killdate.dev).
+      blocked on #7.
+- [ ] **macOS notarization** ([#9](https://github.com/jokeane9/orrery/issues/9)) —
+      Apple Developer Program ($99/yr) + 6 secrets. CI ready.
+- [ ] **Post the launch** — Show HN / r/programming / X drafts ready. Worth
+      revisiting the angle: the blog-post-shaped asset now is the **squash-merge
+      measurement finding**, which is novel, verifiable, and names an unnamed
+      problem. See [`BRANCH-RECONCILIATION.md`](BRANCH-RECONCILIATION.md) §01.
 
-## Later
+## Later — other
 
+- [ ] **Session handoff bundle** (`orrery session share <id>`) — one portable
+      file per agent session: footprint, worktree verdict, diff stat, no
+      transcript. Every vendor now shares *transcripts* and is fighting secret
+      leakage over it; this shares consequences and structurally can't leak.
+      **Proposal** — read [`MULTIPLAYER-SPEC.md`](MULTIPLAYER-SPEC.md) first.
+      (A team server for sharing sessions is a **decided no** in the same doc.)
+      *Honest note: its likeliest real use is future-you, not a teammate.*
 - [ ] **P4 — LLM extraction** ([#15](https://github.com/jokeane9/orrery/issues/15)) —
       feed a repo's CLAUDE.md to Claude to distill card fields for repos without a
       structured block. Opt-in, needs an API key + disclosure. **Deferred by decision.**
-- [ ] **macOS notarization** — Apple Developer Program ($99/yr) + 6 secrets.
-      CI ready. (`platform:mac`, `signing`)
 - [ ] **Tahoe icon polish** — `.icon` (Icon Composer) + `Assets.car` for macOS 26. Cosmetic. (`platform:mac`)
-- [ ] **Blog launch post** — the open-source / donation announcement.
 
 ---
 
@@ -97,6 +139,28 @@ Written down so they don't get relitigated every quarter.
   the actual job. But a delta needs remembered state, which fights principle #3
   (live from disk, no database) and adds a sync layer that can drift. The
   attention rollup already answers "what needs you" with zero stored state.
+  ⚠️ **Revisit note (2026-08-21):** the new notice-driven direction looks like it
+  contradicts this. It doesn't, and the distinction is load-bearing. A notice fires
+  on an **event** (a session ended, a push is about to happen) and reports *current*
+  state at that moment — no memory of what it told you before. A delta view needs a
+  stored "last seen" snapshot. **Event-triggered: yes. Remembered diff: still no.**
+  If a notice ever needs to suppress repeats, that's the moment this no gets
+  re-argued properly — not quietly eroded.
+
+- **Monetization.** Settled 2026-08-21 in [`WHO-PAYS.md`](WHO-PAYS.md) and
+  [`PRODUCT.md`](../PRODUCT.md). Dev tools sell a time saving to someone who doesn't
+  own the time; tools that *do* the work sell, tools that *help* don't. Orrery
+  helps. It stays free, open source and donation-supported. Being better at the job
+  is the target, not finding a price.
+
+- **Multiplayer, team servers, compliance/audit positioning.** Each closed with
+  evidence — [`MULTIPLAYER-SPEC.md`](MULTIPLAYER-SPEC.md). Vendors shipped shared
+  agent sessions inside eight months; every independent attempt died; seven
+  regulatory regimes distinguish nothing about AI-written code.
+
+- **Building a merge tool.** [`weave`](https://github.com/Ataraxy-Labs/weave) does
+  entity-level merge well and cleared 25% of our conflicts outright. Depend on it,
+  don't rebuild it.
 - **CI / build status.** Users will ask. PRODUCT.md's non-goal stands: scraping CI
   means tokens, network, and polling in the render path — that's a different
   product, and it breaks the offline-engine principle (#4).
