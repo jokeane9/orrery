@@ -7,6 +7,44 @@ platforms.
 
 ## [Unreleased]
 
+## [2.6.0] — 2026-08-21
+### Added
+- **`orrery collisions` — a verdict, not a table.** Agents produce branches
+  faster than anyone lands them, and the pile lies to you in a specific way.
+  `--no-merged` and `git branch --merged` both answer by *ancestry*, and a
+  squash-merge never makes a branch's commits ancestors of the trunk — so a
+  branch whose every line already shipped reports as unmerged forever, and
+  conflicts against main by construction. On a real 28-repo workspace that
+  mislabelled **50 of 113 branches**. The command leads with what to do:
+  `50 safe to delete · 36 land clean · 27 need you`.
+  - **Patch-id triage first** (`git cherry`) — asks whether an equivalent patch is
+    already upstream, which squash survives and ancestry doesn't.
+  - **Then mergeability** (`git merge-tree --write-tree`), computed in memory: no
+    checkout, no index write, nothing left half-done to abort.
+  - **Then collisions** — files two or more branches that still have to land both
+    touch.
+  - **Branches dedupe by commit tip, not name.** A repo with both `origin` and
+    `upstream` carries every shared branch twice, which doubled every collision it
+    appeared in.
+  - **Skipped repos say so.** Vendored forks (2,229 refs in one) are bypassed for
+    cost — but named in the output. A silent cap would report "nothing
+    outstanding" for a repo it never examined, which is the kind of quiet lie this
+    view exists to stop.
+  - Read-only throughout, `--json` like every other command, ~10s across 28 repos.
+### Changed
+- **Product direction: housekeeping that speaks, not observability you visit.**
+  The old north star was *"the first window you open and the one you keep open"* —
+  and its own maintainer stopped opening it. A window loses to an agent that can
+  derive the same state on demand; six ghost worktrees once sat for 68 days not
+  because nothing could find them, but because nobody asked. Two new product
+  principles: **never lie about state**, and **say something without being
+  opened**. Full reasoning in `PRODUCT.md` and `project-management/DIRECTION.md`.
+- **Five research decision records** added under `project-management/` —
+  multiplayer (no), the market map (not a business), stranded worktrees, branch
+  reconciliation, and the forward direction. Around fifteen circulating industry
+  figures are flagged as unreliable, including one this project had itself
+  repeated.
+
 ## [2.5.0] — 2026-07-22
 ### Added
 - **Sessions is a control plane, not just a mirror.** Running sessions get an
@@ -329,7 +367,8 @@ differentiator isn't the git dashboard, it's the state your agents leave behind.
 - CI release pipeline: `v*` tag → build both platforms → publish GitHub Release
   → auto-bump the Homebrew cask.
 
-[Unreleased]: https://github.com/jokeane9/orrery/compare/v1.2.2...HEAD
+[Unreleased]: https://github.com/jokeane9/orrery/compare/v2.6.0...HEAD
+[2.6.0]: https://github.com/jokeane9/orrery/compare/v2.5.0...v2.6.0
 [1.2.2]: https://github.com/jokeane9/orrery/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/jokeane9/orrery/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/jokeane9/orrery/compare/v1.1.0...v1.2.0
