@@ -895,6 +895,213 @@ def worktrees_html(worktrees):
 
 
 # --------------------------------------------------------------------------- #
+# Collisions — which branches are already landed, which land clean, which fight.
+#
+# Agents produce branches faster than anyone merges them, and the pile lies to
+# you in a specific way: `--no-merged` and `git branch --merged` both answer by
+# ANCESTRY, and a squash-merge never makes a branch's commits ancestors of main.
+# So a branch whose every line is already in main reports as unmerged forever —
+# and conflicts against main by construction, because main holds the squashed
+# version and the branch holds the originals.
+#
+# Measured on the maintainer's own repos (2026-08-21): 10 of 28 branches in one,
+# 8 of 15 in another, were pure ghosts of this. A third of the "mess" was a
+# measurement artifact.
+#
+# So the first pass here is patch-id, not ancestry: `git cherry` asks whether an
+# equivalent patch is already upstream, which squash survives. Only what's left
+# gets a mergeability probe. Everything is read-only — merge-tree computes the
+# merge in memory and never touches the index or the working tree.
+# --------------------------------------------------------------------------- #
+_COLL_FILES = 8                 # files listed per collision before an overflow count
+_COLL_MAX_REFS = 100            # above this a repo is a fork/mirror, not your work
+_COLL_MAX_AHEAD = 40            # a branch this far ahead isn't agent debris
+_COLL_TIMEOUT = 5               # per git call; 28 repos means slow calls can't linger
+
+# Why the guards exist, measured on a real 28-repo workspace (2026-08-21): an
+# unguarded sweep ran past five minutes. The cause was not branch count —
+# `postiz`, with three branches, was slower than repos with thirty. Vendored OSS
+# forks (langflow: 2,229 remote refs; dspy: 532) carry histories deep enough that
+# even `rev-list --count` walks for seconds, and `git cherry` is far worse because
+# it computes a patch-id per commit across the whole divergence.
+#
+# So: bound the work structurally, and SAY what was skipped. A silent cap would
+# report "nothing outstanding" for a repo it never looked at, which is exactly the
+# kind of quiet lie this view exists to stop.
+
+
+def _git_rc(repo, *args, timeout=_COLL_TIMEOUT):
+    """(returncode, stdout) — `_git` swallows the code, and merge-tree signals
+    a conflict THROUGH its exit status, so this variant keeps it. A timeout comes
+    back as rc -1, which every caller treats as 'unknown', never as a verdict."""
+    try:
+        r = subprocess.run(["git", "-C", repo] + list(args),
+                           capture_output=True, text=True, timeout=timeout)
+        return r.returncode, r.stdout.strip()
+    except Exception:
+        return -1, ""
+
+
+def _ahead_behind(repo, base, ref):
+    """(ahead, behind) in one cheap call, or (None, None) if git couldn't say.
+    Cheap enough to gate the expensive probes behind."""
+    rc, out = _git_rc(repo, "rev-list", "--left-right", "--count", f"{base}...{ref}")
+    parts = out.split()
+    if rc != 0 or len(parts) != 2 or not all(p.isdigit() for p in parts):
+        return None, None
+    behind, ahead = int(parts[0]), int(parts[1])    # left is base, right is ref
+    return ahead, behind
+
+
+def _novel_commits(repo, base, ref):
+    """How many of `ref`'s commits have no equivalent already in `base`.
+
+    `git cherry` compares by patch-id, so a commit that reached base through a
+    SQUASH merge counts as already-there — which plain ancestry (`--no-merged`)
+    gets wrong. 0 here means the branch is fully landed and safe to delete."""
+    rc, out = _git_rc(repo, "cherry", base, ref)
+    if rc != 0:
+        return None                                  # unknown — never guess 0
+    return sum(1 for line in out.splitlines() if line.startswith("+"))
+
+
+def _merge_probe(repo, base, ref):
+    """('clean' | 'conflict' | 'unknown', [conflicted paths]).
+
+    merge-tree --write-tree does the whole merge in memory: no checkout, no
+    index write, nothing to abort. Needs git 2.38+; older gits fall out as
+    'unknown' rather than reporting a false verdict."""
+    rc, out = _git_rc(repo, "merge-tree", "--write-tree", "--name-only", base, ref)
+    if rc == 0:
+        return "clean", []
+    lines = [ln for ln in out.splitlines() if ln.strip()]
+    if not lines:
+        return "unknown", []                         # old git, or a bad ref
+    return "conflict", lines[1:]                     # [0] is the result tree oid
+
+
+def _branch_candidates(repo, base):
+    """[(display, ref, scope), …] — one entry per distinct branch TIP.
+
+    Deduped by commit sha, not by name. A repo with both `origin` and `upstream`
+    carries every shared branch twice, and a local branch usually duplicates its
+    own remote — counting those separately inflates every collision number. When
+    several refs point at one commit the local name wins, then origin, then
+    whatever sorts first, because that's the name you'd actually type."""
+    base_short = base.split("/")[-1]
+    by_sha = {}
+
+    def _scan(pattern, scope):
+        """Two batched for-each-ref calls, not one per ref — a mirror can carry
+        thousands, and a subprocess each would cost more than the whole view."""
+        out = _git(repo, "for-each-ref",
+                   "--format=%(refname:short)\t%(objectname)", pattern)
+        for line in out.splitlines():
+            parts = line.split("\t")
+            if len(parts) != 2:
+                continue
+            name, sha = parts[0], parts[1]
+            short = name.split("/", 1)[-1] if scope == "remote" else name
+            if name == base or short == base_short or short == "HEAD":
+                continue
+            # rank: local (0) < origin/* (1) < any other remote (2)
+            rank = 0 if scope == "local" else (1 if name.startswith("origin/") else 2)
+            prev = by_sha.get(sha)
+            if prev is None or rank < prev[0]:
+                by_sha[sha] = (rank, name, scope)
+
+    _scan("refs/heads", "local")
+    _scan("refs/remotes", "remote")
+    return [(n, n, scope) for _, (_, n, scope) in
+            sorted(by_sha.items(), key=lambda kv: (kv[1][0], kv[1][1]))]
+
+
+def collect_collisions(project_dirs):
+    """[{repo, repo_path, base, landed, pending, conflicted, branches, collisions}, …]
+
+    One record per repo that has unlanded branches. `branches` carries a verdict
+    each — 'landed' (already in main by patch-id, safe to delete), 'clean' (merges
+    with no conflict), 'conflict', or 'unknown'. `collisions` lists files two or
+    more *pending* branches both touch. Repos with nothing outstanding are omitted.
+
+    Read-only throughout: no checkout, no index write, no merge left half-done."""
+    def _blank(name, repo, why):
+        """A repo we deliberately didn't finish, shaped like every other record so
+        the renderer can't accidentally drop it."""
+        return {"repo": name, "repo_path": repo, "base": "", "skipped": why,
+                "landed": 0, "clean": 0, "conflicted": 0,
+                "branches": [], "collisions": []}
+
+    out = []
+    for name, pdir in sorted(project_dirs):
+        repo = os.path.expanduser(pdir)
+        base = _wt_base(repo)
+        if not base:
+            continue                                 # no trunk to compare against
+
+        cands = _branch_candidates(repo, base)
+        if len(cands) > _COLL_MAX_REFS:              # a fork or mirror, not your work
+            out.append(_blank(name, repo,
+                              f"{len(cands)} branches — looks like a fork or mirror"))
+            continue
+
+        branches, touches, slow = [], {}, 0
+        for display, ref, scope in cands:
+            ahead, behind = _ahead_behind(repo, base, ref)
+            if ahead is None:                        # timed out or unreadable
+                slow += 1
+                continue
+            if ahead == 0:
+                continue                             # nothing of its own to land
+            rec = {"name": display, "scope": scope, "commits": ahead,
+                   "behind": behind, "novel": ahead, "conflict_files": []}
+            if ahead > _COLL_MAX_AHEAD:
+                # Patch-id triage across this much history costs more than the
+                # answer is worth, and a branch this far ahead isn't agent debris.
+                rec["verdict"] = "diverged"
+                branches.append(rec)
+                continue
+
+            novel = _novel_commits(repo, base, ref)
+            if novel is None:
+                rec["verdict"] = "unknown"
+                branches.append(rec)
+                continue
+            rec["novel"] = novel
+            if novel == 0:
+                rec["verdict"] = "landed"            # every patch already upstream
+            else:
+                status, files = _merge_probe(repo, base, ref)
+                rec["verdict"] = status
+                rec["conflict_files"] = files
+                for f in _git(repo, "diff", "--name-only",
+                              f"{base}...{ref}").splitlines():
+                    if f.strip():
+                        touches.setdefault(f, []).append(display)
+            branches.append(rec)
+
+        if not branches:
+            if slow:                                 # nothing read, and we know why
+                out.append(_blank(name, repo, f"{slow} branch(es) too slow to read"))
+            continue
+        collisions = sorted(
+            ({"file": f, "branches": bs} for f, bs in touches.items() if len(bs) > 1),
+            key=lambda c: (-len(c["branches"]), c["file"]))
+        rec = {
+            "repo": name, "repo_path": repo, "base": base, "skipped": "",
+            "landed": sum(1 for b in branches if b["verdict"] == "landed"),
+            "clean": sum(1 for b in branches if b["verdict"] == "clean"),
+            "conflicted": sum(1 for b in branches if b["verdict"] == "conflict"),
+            "branches": branches, "collisions": collisions,
+        }
+        if slow:                                     # partial, and it says so
+            rec["skipped"] = f"{slow} branch(es) too slow to read"
+        out.append(rec)
+    out.sort(key=lambda r: -(r["landed"] + len(r["branches"])))
+    return out
+
+
+# --------------------------------------------------------------------------- #
 # Sessions — what your agents are doing, and what they left behind.
 #
 # Worktrees answers "what did my agent leave on disk". This answers "what was it
